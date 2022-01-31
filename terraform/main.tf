@@ -46,8 +46,8 @@ resource "azurerm_network_security_group" "main" {
 
 resource "azurerm_network_security_rule" "rule1" {
   name                        = "DenyAllInbound"
-  description                 = "This rule deny all the inbound traffic"
-  priority                    = 110
+  description                 = "This rule deny all the inbound traffic from the internet"
+  priority                    = 100
   direction                   = "Inbound"
   access                      = "Deny"
   protocol                    = "*"
@@ -60,14 +60,14 @@ resource "azurerm_network_security_rule" "rule1" {
 }
 
 resource "azurerm_network_security_rule" "rule2" {
-  name                        = "AllowVMsAccess"
-  description                 = "This rule define the inbound traffice inside the same virtual network"
-  priority                    = 100
+  name                        = "AllowInboundVMs"
+  description                 = "This rule allows the inbound traffice inside the same virtual network"
+  priority                    = 110
   direction                   = "Inbound"
   access                      = "Allow"
   protocol                    = "*"
-  source_port_range          = "*"
-  destination_port_range     = "*"
+  source_port_ranges          = ["0-1000"]
+  destination_port_ranges     = ["0-1000"]
   source_address_prefix       = "VirtualNetwork"
   destination_address_prefix  = "VirtualNetwork"
   resource_group_name         = azurerm_resource_group.main.name
@@ -76,16 +76,31 @@ resource "azurerm_network_security_rule" "rule2" {
 
 
 
-resource "azurerm_network_security_rule" "rule4" {
+resource "azurerm_network_security_rule" "rule3" {
   name                        = "AllowVnetOutBound"
-  description                 = "Allow outbount traffice in Virtual network"
+  description                 = "Allow outbount traffic in the sameVirtual network"
   priority                    = 100
   direction                   = "Outbound"
   access                      = "Allow"
   protocol                    = "*"
-  source_port_range          = "*"
-  destination_port_range     = "*"
+  source_port_ranges          = ["0-1000"]
+  destination_port_ranges     = ["0-1000"]
   source_address_prefix       = "VirtualNetwork"
+  destination_address_prefix  = "VirtualNetwork"
+  resource_group_name         = azurerm_resource_group.main.name
+  network_security_group_name = azurerm_network_security_group.main.name
+}
+
+resource "azurerm_network_security_rule" "rule4" {
+  name                        = "AllowHTTPLB"
+  description                 = "Allow http traffic to the VM from the load balancer"
+  priority                    = 120
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_ranges          = ["0-1000"]
+  destination_port_ranges     = ["0-1000"]
+  source_address_prefix       = "AzureLoadBalancer"
   destination_address_prefix  = "VirtualNetwork"
   resource_group_name         = azurerm_resource_group.main.name
   network_security_group_name = azurerm_network_security_group.main.name
@@ -105,6 +120,12 @@ resource "azurerm_network_interface" "main" {
   }
 
   tags = var.tags
+}
+
+resource "azurerm_network_interface_security_group_association" "main" {
+  count                     = var.no_vms
+  network_interface_id      = azurerm_network_interface.main[count.index].id
+  network_security_group_id = azurerm_network_security_group.main.id
 }
 
 
